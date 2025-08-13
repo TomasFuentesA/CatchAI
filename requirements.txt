@@ -7,3 +7,4 @@ openai==1.44.1
 tiktoken==0.7.0
 streamlit==1.38.0
 python-dotenv==1.0.1
+ipykernel==6.25.2
