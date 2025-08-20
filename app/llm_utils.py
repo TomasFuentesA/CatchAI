@@ -2,34 +2,44 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import gc
 
-# Global variables to cache the model and tokenizer
+# Variables de caché y tokenizador
 _tokenizer = None
 _model = None
 
 def _load_model():
-    """Load and cache the model and tokenizer (singleton pattern)"""
+    """
+    Input: No recibe
+    Output: (tokenizer, model)
+    Descripcion: Carga y almacena en caché el modelo y el tokenizador (patrón singleton).
+    """
     global _tokenizer, _model
     
     if _tokenizer is None or _model is None:
-        print("Loading model and tokenizer (this may take a moment)...")
+        print("Cargando modelo y tokenizador (esto puede tardar un momento)...")
         
         _tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
         _model = AutoModelForCausalLM.from_pretrained(
             "google/gemma-2b-it",
-            torch_dtype=torch.float16,  # Use float16 for better memory efficiency
-            device_map="auto",          # Automatic device mapping
-            low_cpu_mem_usage=True      # Optimize CPU memory usage
+            torch_dtype=torch.float16,  # Usar float16 para mejor eficiencia de memoria
+            device_map="auto",          # Asignación automática de dispositivo
+            low_cpu_mem_usage=True      # Optimizar uso de memoria CPU
         )
         
-        # Set pad token if not already set
+        # Establecer el token de relleno si no está definido
         if _tokenizer.pad_token is None:
             _tokenizer.pad_token = _tokenizer.eos_token
             
-        print("Model and tokenizer loaded successfully!")
+        print("¡Modelo y tokenizador cargados exitosamente!")
     
     return _tokenizer, _model
 
 def get_llm_response(context, query):
+    '''
+    Input: contexto y consulta
+    Output: respuesta generada por el modelo
+    Descripcion: Genera una respuesta basada en el contexto y la consulta proporcionados.
+    '''
+
     tokenizer, model = _load_model()
     
     prompt = (
@@ -38,17 +48,17 @@ def get_llm_response(context, query):
         "Responde de forma clara y específica usando solo la información relevante del contexto. Si no hay información suficiente, responde 'No sé'."
     )
     
-    # Tokenize with padding and attention mask
+    # Tokenizar con relleno y máscara de atención
     inputs = tokenizer(
         prompt, 
         return_tensors="pt", 
         truncation=True, 
-        max_length=1024,  # Limit input length to manage memory
+        max_length=1024,  # Limitar longitud de entrada para gestionar memoria
         padding=True
     )
     
-    # Generate response with memory optimization
-    with torch.no_grad():  # Disable gradient computation to save memory
+    # Generar respuesta con optimización de memoria
+    with torch.no_grad():  # Desactivar cálculo de gradientes para ahorrar memoria
         outputs = model.generate(
             **inputs,
             max_new_tokens=150,
@@ -60,19 +70,23 @@ def get_llm_response(context, query):
     
     respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
-    # Clean up tensors to free memory
+    # Liberar tensores para ahorrar memoria
     del inputs, outputs
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
     gc.collect()
     
-    # Elimina el prompt si aparece en la respuesta
+    # Eliminar el prompt si aparece en la respuesta
     if respuesta.startswith(prompt):
         respuesta = respuesta[len(prompt):].strip()
     
     return respuesta
 
 def cleanup_model():
-    """Clean up model and tokenizer to free memory"""
+    """
+    Input: No recibe
+    Output: No devuelve
+    Descripcion: Libera los recursos utilizados por el modelo y el tokenizador.
+    """
     global _tokenizer, _model
     
     if _model is not None:
