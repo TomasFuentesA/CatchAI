@@ -7,7 +7,17 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 import os
 
-app = FastAPI(title="Chroma Vector Database Service", version="1.0.0")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    get_embeddings()
+    get_chroma_client()
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(title="Chroma Vector Database Service", version="1.0.0", lifespan=lifespan)
 
 # Configuration
 PERSIST_DIRECTORY = "/data/chroma_db"
@@ -45,11 +55,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     results: List[str]
 
-@app.on_event("startup")
-async def startup_event():
-    # Initialize embeddings and client on startup
-    get_embeddings()
-    get_chroma_client()
+
 
 @app.get("/health")
 async def health_check():

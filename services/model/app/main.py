@@ -5,7 +5,16 @@ import torch
 import gc
 import os
 
-app = FastAPI(title="LLM Model Service", version="1.0.0")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    _load_model()
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(title="LLM Model Service", version="1.0.0", lifespan=lifespan)
 
 # Global variables to cache the model and tokenizer
 _tokenizer = None
@@ -47,10 +56,7 @@ def _load_model():
     
     return _tokenizer, _model
 
-@app.on_event("startup")
-async def startup_event():
-    # Pre-load model on startup
-    _load_model()
+
 
 @app.get("/health")
 async def health_check():

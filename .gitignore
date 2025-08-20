@@ -189,3 +189,6 @@ catchAI/
 
 #chroma
 chroma_db/
+
+# Test files
+test-*.yml
