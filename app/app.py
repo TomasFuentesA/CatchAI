@@ -61,11 +61,15 @@ if uploaded_file:
             
             chunks = split_text(text)
             chunk_ids = [f"{uploaded_file.name}_chunk{i+1}" for i in range(len(chunks))]
-            create_vectorstore(chunks, chunk_ids, PERSIST_DIRECTORY, CHROMA_SETTINGS)
-            st.success("Base vectorial creada.")
+            vectorstore = create_vectorstore(chunks, chunk_ids, PERSIST_DIRECTORY, CHROMA_SETTINGS)
+            if vectorstore is not None:
+                st.success("Base vectorial creada.")
+            else:
+                st.error("Error al crear la base vectorial. Verifique su conexión a internet.")
             st.session_state["file_uploader"] = None
 
 query = st.text_input("Escribe tu consulta", key="consulta")
+
 if query:
     try:
         with st.spinner("Buscando información relevante..."):
@@ -74,9 +78,9 @@ if query:
             context = context[:512]  # Limit context to manage memory
             
         if not relevant_chunks or context.strip() == "":
-            respuesta = "No encontré información relevante en los documentos para tu consulta."
+            respuesta = "No encontré información relevante en los documentos para tu consulta. Esto puede deberse a problemas de conectividad o a que no hay documentos cargados."
         else:
-            with st.spinner("Generando respuesta con IA..."):
+            with st.spinner("Generando respuesta..."):
                 respuesta = get_llm_response(context, query)
                 
         # Guarda en el historial
