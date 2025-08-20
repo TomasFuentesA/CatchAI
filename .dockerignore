@@ -46,3 +46,7 @@ tmp/
 temp/
 *.tmp
 *.log
+
+# Application data (will be created fresh)
+chroma_db/
+pdf/

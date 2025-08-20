@@ -18,7 +18,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ app/
-COPY pdf/ pdf/
+
+# Create pdf directory (it will be used for uploaded files)
+RUN mkdir -p pdf/
 
 EXPOSE 8501
 
