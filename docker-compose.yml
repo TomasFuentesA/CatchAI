@@ -7,3 +7,19 @@ services:
       - "8501:8501"
     volumes:
       - ./pdf:/app/pdf
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:256
+    deploy:
+      resources:
+        limits:
+          memory: 8G      # Limit memory to 8GB
+          cpus: '4.0'     # Limit CPU usage
+        reservations:
+          memory: 4G      # Reserve minimum 4GB
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

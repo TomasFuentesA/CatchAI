@@ -183,3 +183,9 @@ cython_debug/
 # pdf files
 *.pdf
 *.txt 
+
+#venv directory
+catchAI/
+
+#chroma
+chroma_db/

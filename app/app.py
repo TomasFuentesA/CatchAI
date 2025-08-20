@@ -1,10 +1,11 @@
 import streamlit as st
 from pdf_utils import extract_text, clean_text
 from vector_utils import split_text, create_vectorstore, query_vectorstore
-from llm_utils import get_llm_response
+from llm_utils import get_llm_response, cleanup_model
 from config import HF_TOKEN, PERSIST_DIRECTORY, CHROMA_SETTINGS
 from huggingface_hub import login
 import os
+import gc
 
 login(token=HF_TOKEN)
 
@@ -18,14 +19,26 @@ if "historial" not in st.session_state:
 if "pdf_count" not in st.session_state:
     st.session_state.pdf_count = 0
 
-if st.button("Limpiar base de datos"):
-    from chromadb import PersistentClient
-    try:
-        client = PersistentClient(path=PERSIST_DIRECTORY, settings=CHROMA_SETTINGS)
-        client.reset()
-        st.success("Base de datos limpiada correctamente.")
-    except Exception as e:
-        st.error(f"No se pudo limpiar la base de datos: {e}")
+# Add memory cleanup button
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("Limpiar base de datos"):
+        from chromadb import PersistentClient
+        try:
+            client = PersistentClient(path=PERSIST_DIRECTORY, settings=CHROMA_SETTINGS)
+            client.reset()
+            st.success("Base de datos limpiada correctamente.")
+        except Exception as e:
+            st.error(f"No se pudo limpiar la base de datos: {e}")
+
+with col2:
+    if st.button("Limpiar memoria del modelo"):
+        try:
+            cleanup_model()
+            gc.collect()
+            st.success("Memoria del modelo limpiada correctamente.")
+        except Exception as e:
+            st.error(f"Error al limpiar memoria: {e}")
 
 uploaded_file = st.file_uploader("Sube un PDF", type="pdf")
 if uploaded_file:
@@ -56,18 +69,28 @@ if uploaded_file:
             st.session_state["file_uploader"] = None
 
 query = st.text_input("Escribe tu consulta", key="consulta")
+
 if query:
-    relevant_chunks = query_vectorstore(query, PERSIST_DIRECTORY, CHROMA_SETTINGS, k=7)
-    context = "\n".join(relevant_chunks)
-    context = context[:512]
-    if not relevant_chunks or context.strip() == "":
-        respuesta = "No encontré información relevante en los documentos para tu consulta. Esto puede deberse a problemas de conectividad o a que no hay documentos cargados."
-    else:
-        respuesta = get_llm_response(context, query)
-    # Guarda en el historial
-    st.session_state.historial.append({"consulta": query, "respuesta": respuesta})
-    st.subheader("Respuesta del chatbot:")
-    st.write(respuesta)
+    try:
+        with st.spinner("Buscando información relevante..."):
+            relevant_chunks = query_vectorstore(query, PERSIST_DIRECTORY, CHROMA_SETTINGS, k=7)
+            context = "\n".join(relevant_chunks)
+            context = context[:512]  # Limit context to manage memory
+            
+        if not relevant_chunks or context.strip() == "":
+            respuesta = "No encontré información relevante en los documentos para tu consulta. Esto puede deberse a problemas de conectividad o a que no hay documentos cargados."
+        else:
+            with st.spinner("Generando respuesta..."):
+                respuesta = get_llm_response(context, query)
+                
+        # Guarda en el historial
+        st.session_state.historial.append({"consulta": query, "respuesta": respuesta})
+        st.subheader("Respuesta del chatbot:")
+        st.write(respuesta)
+        
+    except Exception as e:
+        st.error(f"Error al procesar la consulta: {str(e)}")
+        st.info("Intenta limpiar la memoria del modelo y vuelve a intentarlo.")
 
 # Muestra el historial
 st.subheader("Historial de consultas")
