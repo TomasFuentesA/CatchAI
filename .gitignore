@@ -192,3 +192,4 @@ chroma_db/
 
 # Test files
 test-*.yml
+create_diagram.py
