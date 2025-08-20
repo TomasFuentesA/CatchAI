@@ -1,0 +1,86 @@
+services:
+  # Chroma Vector Database Service
+  chroma:
+    build: ./services/chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/data/chroma_db
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+
+  # Model Service (LLM)
+  model:
+    build: ./services/model
+    ports:
+      - "8001:8001"
+    volumes:
+      - model_cache:/app/.cache
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:256
+      - TRANSFORMERS_CACHE=/app/.cache/transformers
+      - HF_HOME=/app/.cache/huggingface
+      - HF_TOKEN=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
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 6G      # Most memory for the model
+          cpus: '2.0'
+        reservations:
+          memory: 3G
+
+  # Streamlit Web UI Service
+  streamlit:
+    build: ./services/streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./pdf:/app/pdf
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - chroma
+      - model
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+
+volumes:
+  chroma_data:
+    driver: local
+  model_cache:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
