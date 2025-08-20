@@ -34,7 +34,7 @@
    ```
 
 2. **Configura tu token de HuggingFace:**
-   - Crea un archivo `.env` en la raíz:
+   - Añade tu TOKEN en el archivo config.py:
      ```
      HF_TOKEN=tu_token_aqui
      ```
